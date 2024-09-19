@@ -1,0 +1,228 @@
+college-directory-app/
+|-- public/
+|-- src/
+    |-- components/
+        |-- Login.js
+        |-- Dashboard.js
+        |-- StudentDashboard.js
+        |-- FacultyDashboard.js
+        |-- AdminDashboard.js
+    |-- contexts/
+        |-- AuthContext.js
+    |-- services/
+        |-- api.js
+    |-- App.js
+    |-- index.js
+|-- package.json
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Login from './components/Login';
+import StudentDashboard from './components/StudentDashboard';
+import FacultyDashboard from './components/FacultyDashboard';
+import AdminDashboard from './components/AdminDashboard';
+import { AuthProvider } from './contexts/AuthContext';
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/student" element={<StudentDashboard />} />
+          <Route path="/faculty" element={<FacultyDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
+import React, { createContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { loginService } from '../services/api';
+
+export const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [auth, setAuth] = useState(null);
+  const navigate = useNavigate();
+
+  const login = async (credentials) => {
+    try {
+      const user = await loginService(credentials);
+      setAuth(user);
+      navigate(`/${user.role.toLowerCase()}`);
+    } catch (error) {
+      alert('Login failed!');
+    }
+  };
+
+  const logout = () => {
+    setAuth(null);
+    navigate('/');
+  };
+
+  return (
+    <AuthContext.Provider value={{ auth, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+import React, { useState, useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+
+const Login = () => {
+  const { login } = useContext(AuthContext);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('Student');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    login({ username, password, role });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Login</h2>
+      <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <select value={role} onChange={(e) => setRole(e.target.value)}>
+        <option value="Student">Student</option>
+        <option value="Faculty">Faculty Member</option>
+        <option value="Administrator">Administrator</option>
+      </select>
+      <button type="submit">Login</button>
+    </form>
+  );
+};
+
+export default Login;
+import React, { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+
+const StudentDashboard = () => {
+  const { auth } = useContext(AuthContext);
+
+  return (
+    <div>
+      <h1>Welcome {auth.name}</h1>
+      <p>Your academic profile will be displayed here</p>
+    </div>
+  );
+};
+
+export default StudentDashboard;
+import React from 'react';
+
+const FacultyDashboard = () => {
+  return (
+    <div>
+      <h1>Faculty Dashboard</h1>
+      <p>Manage class lists and office hours here</p>
+    </div>
+  );
+};
+
+export default FacultyDashboard;
+import React from 'react';
+
+const AdminDashboard = () => {
+  return (
+    <div>
+      <h1>Admin Dashboard</h1>
+      <p>Manage student and faculty records here</p>
+    </div>
+  );
+};
+
+export default AdminDashboard;
+import axios from 'axios';
+
+export const loginService = async (credentials) => {
+  const response = await axios.post('http://localhost:8080/api/login', credentials);
+  return response.data;
+};
+
+// Additional API calls for student, faculty, and admin data.
+src/
+|-- main/
+    |-- java/
+        |-- com/
+            |-- college/
+                |-- controllers/
+                |-- services/
+                |-- models/
+                |-- repositories/
+                |-- security/
+    |-- resources/
+        |-- application.properties
+|-- test/
+@RestController
+@RequestMapping("/api")
+public class LoginController {
+    
+    @Autowired
+    private UserService userService;
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        User user = userService.validateUser(loginRequest.getUsername(), loginRequest.getPassword(), loginRequest.getRole());
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
+    }
+}
+@Service
+public class UserService {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    public User validateUser(String username, String password, String role) {
+        Optional<User> user = userRepository.findByUsernameAndPasswordAndRole(username, password, role);
+        return user.orElse(null);
+    }
+}
+@Entity
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String username;
+    private String password;
+    private String role;
+    private String name;
+    private String email;
+
+    // Getters and setters
+}
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUsernameAndPasswordAndRole(String username, String password, String role);
+}
+spring.datasource.url=jdbc:postgresql://localhost:5432/college_directory
+spring.datasource.username=postgres
+spring.datasource.password=your_password
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+-- Create User Table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL
+);
+
+-- Sample Data
+INSERT INTO users (username, password, role, name, email) VALUES 
+('student1', 'password', 'Student', 'John Doe', 'john@example.com'),
+('faculty1', 'password', 'Faculty', 'Dr. Smith', 'smith@example.com'),
+('admin1', 'password', 'Administrator', 'Admin User', 'admin@example.com');
+mvn spring-boot:run
+npm start
